@@ -1,0 +1,862 @@
+{
+  "name": "Freight Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a logistics assistant.\n\nCheck History: Look at the conversation memory to see what data we already have.\n\nAnalyze New Message: Extract any new details from:{{ $json.messages[0].text.body }}\n\nValidation: Only set 'valid': true if you have ALL 5 pieces of data (Order ID, Carrier, Weight, Destination, Email) AND they pass the rules (FedEx < 150lb, NY starts with FR, Email is @company.com).\n\nThe Reason: If 'valid' is false, write a friendly message asking for exactly what is missing. Do NOT show the user JSON code.\n\nFormat your output as raw JSON only.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        448,
+        -96
+      ],
+      "id": "8cafd496-d210-48d8-8973-b800ab761a4e",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "mistralai/devstral-small",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        288,
+        48
+      ],
+      "id": "22c16e84-6544-44c3-aa58-9d408c011d52",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "GhbU6XOabV0s5U2t",
+          "name": "OpenRouter account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f3641268-80e3-4277-91ca-2fcc5d5c2cf0",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        32,
+        400
+      ],
+      "id": "d9a19d12-ea98-4801-88af-618156b2636a",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "html_content": "=<div style=\"font-family: sans-serif; border: 2px solid #000; padding: 20px;\">   <h1 style=\"text-align: center;\">SHIPPING MANIFEST</h1>   <hr>   <p><strong>Order ID:</strong>{{ $json.order_id }}</p>   <p><strong>Carrier:</strong>{{ $json.carrier }}</p>   <p><strong>Weight:</strong> {{ $json.weight_lb }}lbs</p>   <p><strong>Destination:</strong>{{ $json.destination }} </p>   <div style=\"background: #eee; padding: 10px; margin-top: 20px; text-align: center;\">     AI VALIDATED: {{ $json.reason }}   </div> </div>",
+        "output_format": "file",
+        "output_filename": "=Shipping_Label_{{ $node[\"AI Agent\"].json.order_id }}.pdf",
+        "dynamic_params": {
+          "params": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-htmlcsstopdf.htmlcsstopdf",
+      "typeVersion": 1,
+      "position": [
+        288,
+        384
+      ],
+      "id": "01295282-51db-4fb4-9f6d-d89074aac9d5",
+      "name": "Convert HTML to PDF",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "htmlcsstopdfApi": {
+          "id": "wQ3o4T4lid0NGjHX",
+          "name": "HTML to PDF account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('If').item.json.sender_email }}",
+        "subject": "={{ $('If').item.json.order_id }}Shipping Manifest & Labels for Order:",
+        "message": "=<p>Hello,</p>\n<p>Your shipment validation for <b>Order {{ $('If').item.json.order_id }}</b> was successful.</p>\n\n<p><b>Shipment Details:</b></p>\n<ul>\n  <li><b>Carrier:</b> {{ $('If').item.json.carrier }}</li>\n  <li><b>Weight:</b> {{ $('If').item.json.weight_lb }} lbs</li>\n  <li><b>Destination:</b> {{ $('If').item.json.destination }}</li>\n</ul>\n\n<p>Please find the generated shipping manifest attached to this email.</p>\n<br>\n<p><i>Automated Logistics Assistant</i></p>",
+        "options": {
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {}
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        496,
+        384
+      ],
+      "id": "43b29e3c-db3e-4508-bdc8-5ee32442ad88",
+      "name": "Send a message",
+      "webhookId": "c628fb5a-6d5c-4914-bbeb-65924fc05e42",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "4SaeD7uqSpHsB9sq",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1bVoUtmTMSLpEXcrJ0QtHI82koa7nJgXW2gAXluC0DrY",
+          "mode": "list",
+          "cachedResultName": "Freight Automation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1bVoUtmTMSLpEXcrJ0QtHI82koa7nJgXW2gAXluC0DrY/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 866320919,
+          "mode": "list",
+          "cachedResultName": "Google Sheets Demo Data for Logistics",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1bVoUtmTMSLpEXcrJ0QtHI82koa7nJgXW2gAXluC0DrY/edit#gid=866320919"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Order_ID": "={{ $('If1').item.json.order_id }}",
+            "Carrier": "={{ $('If1').item.json.carrier }}",
+            "Weight_lb": "={{ $('If1').item.json.weight_lb }}",
+            "Destination": "={{ $('If1').item.json.destination }}",
+            "Sender_Email": "={{ $('If1').item.json.sender_email }}",
+            "Status": "Fail"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Order_ID",
+              "displayName": "Order_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Carrier",
+              "displayName": "Carrier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Weight_lb",
+              "displayName": "Weight_lb",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Destination",
+              "displayName": "Destination",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Sender_Email",
+              "displayName": "Sender_Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Receiver_Email",
+              "displayName": "Receiver_Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -624,
+        512
+      ],
+      "id": "21157fe7-e46e-4ff6-9d61-3de309ef5729",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "bavCoIyIo44Al1zh",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1bVoUtmTMSLpEXcrJ0QtHI82koa7nJgXW2gAXluC0DrY",
+          "mode": "list",
+          "cachedResultName": "Freight Automation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1bVoUtmTMSLpEXcrJ0QtHI82koa7nJgXW2gAXluC0DrY/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 866320919,
+          "mode": "list",
+          "cachedResultName": "Google Sheets Demo Data for Logistics",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1bVoUtmTMSLpEXcrJ0QtHI82koa7nJgXW2gAXluC0DrY/edit#gid=866320919"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Order_ID": "={{ $('If').item.json.order_id }}",
+            "Carrier": "={{ $('If').item.json.carrier }}",
+            "Weight_lb": "={{ $('If').item.json.weight_lb }}",
+            "Destination": "={{ $('If').item.json.destination }}",
+            "Sender_Email": "={{ $('If').item.json.sender_email }}",
+            "Status": "Pending"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Order_ID",
+              "displayName": "Order_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Carrier",
+              "displayName": "Carrier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Weight_lb",
+              "displayName": "Weight_lb",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Destination",
+              "displayName": "Destination",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Sender_Email",
+              "displayName": "Sender_Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Receiver_Email",
+              "displayName": "Receiver_Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        704,
+        384
+      ],
+      "id": "f9fe3a5e-4fb8-4a66-af16-7f4c5c70cb9e",
+      "name": "Append row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "bavCoIyIo44Al1zh",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "={{ $node[\"Convert HTML to PDF\"].binary.data }}",
+        "name": "=Id number :{{ $('If').item.json.order_id }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "https://drive.google.com/drive/folders/101CGxPbeyrhDVv3HCJYs3S1NJhgROCJ9",
+          "mode": "url"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        928,
+        432
+      ],
+      "id": "eff03b7d-2048-485b-bef1-ab63d91f69cd",
+      "name": "Upload file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "coYuOWolKk3A3O4F",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('If1').item.json.sender_email }}",
+        "subject": "=Order id:{{ $('If1').item.json.order_id }} Failed Validation",
+        "message": "=Your order :{{ $('If1').item.json.order_id }} has failed validation because :{{ $('Code in JavaScript1').item.json.reason }}please correct data and resubmit",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -640,
+        656
+      ],
+      "id": "304e0372-b4c1-4038-a42c-5a50d7b32ea2",
+      "name": "Send a message1",
+      "webhookId": "3a3fba60-a40d-4976-adea-ab74417b2e3c",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "4SaeD7uqSpHsB9sq",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        48,
+        704
+      ],
+      "id": "346e6e55-2983-4679-9e34-2b89528a253b",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.metadata.phone_number_id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        768,
+        48
+      ],
+      "id": "4b187b08-6169-49d6-bf86-5fbbb7c71dac",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "messages"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        48,
+        48
+      ],
+      "id": "23e757ef-64e8-4fbb-9de9-97b3975e9ff9",
+      "name": "WhatsApp Trigger",
+      "webhookId": "82ded4d5-ed66-47ac-8bd1-dfecbbd66bc5",
+      "credentials": {
+        "whatsAppTriggerApi": {
+          "id": "gC7WvkndE0aNBUAO",
+          "name": "WhatsApp OAuth account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7bb5674d-057b-4077-abd6-6e657ce2ddad",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1008,
+        128
+      ],
+      "id": "49792bd3-6473-467d-b9ef-8f75fb9eeb0d",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "jsCode": "let text = $input.first().json.output;\n// This regex removes markdown code blocks (```json ... ```)\nconst cleanJson = text.replace(/```json|```/g, \"\").trim();\nconst parsed = JSON.parse(cleanJson);\nreturn [{ json: parsed }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        -64
+      ],
+      "id": "5afcf0d2-836a-40e7-80d7-60ade393f2d5",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "={{ $('WhatsApp Trigger').item.json.metadata.phone_number_id }}",
+        "recipientPhoneNumber": "923347269312",
+        "textBody": "={{ $('If1').item.json.valid ? \"✅ *Verification Success!*\\n\\nOrder *\" + $('If1').item.json.order_id + \"* has been verified. The manifest was emailed to *\" + $('If1').item.json.sender_email + \"* and archived.\" : \"⚠️ *Action Required*\\n\\n\" + $('If1').item.json.reason }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        288,
+        704
+      ],
+      "id": "16800854-bb67-42a4-8776-594fa064f018",
+      "name": "Send message1",
+      "webhookId": "bed645da-c446-4f1d-9494-4f789f4dd54a",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "ECDcFeFQfShiXfxR",
+          "name": "WhatsApp account 7"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "={{ $('WhatsApp Trigger').item.json.metadata.phone_number_id }}",
+        "recipientPhoneNumber": "+923347269312",
+        "textBody": "={{ $('Code in JavaScript1').item.json.reason }}",
+        "additionalFields": {
+          "previewUrl": false
+        }
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        -480,
+        384
+      ],
+      "id": "28422597-1cde-4be2-81a7-af43c54ed527",
+      "name": "Send message",
+      "webhookId": "a9365469-96a7-4fbc-bda5-6db44cb90e82",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "ECDcFeFQfShiXfxR",
+          "name": "WhatsApp account 7"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        544,
+        704
+      ],
+      "id": "bcdca828-196d-4cae-bcaa-680451f036eb",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3-flash-preview",
+          "mode": "id"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a logistics assistant.\n\nCheck History: Look at the conversation memory to see what data we already have.\n\nAnalyze New Message: Extract any new details from:{{ $json.messages[0].text.body }}\n\nValidation: Only set 'valid': true if you have ALL 5 pieces of data (Order ID, Carrier, Weight, Destination, Email) AND they pass the rules (FedEx < 150lb, NY starts with FR, Email is @company.com).\n\nThe Reason: If 'valid' is false, write a friendly message asking for exactly what is missing. Do NOT show the user JSON code.\n\nFormat your output as raw JSON only."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        128
+      ],
+      "id": "051bce16-32df-485a-a801-fc4d0fa6dbe0",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "eyocDL9JMM1ymPDZ",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3-flash-preview",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=A logistics workflow has failed. Analyze the following technical details and suggest a 1-sentence fix:\n\n- Failed Node: {{ $node[\"Error Trigger\"].json.execution.lastNodeExecuted }}\n- Error Message: {{ $node[\"Error Trigger\"].json.execution.error.message }}\n- Workflow Name: {{ $node[\"Error Trigger\"].json.workflow.name }}\n- Stack Trace: {{ $node[\"Error Trigger\"].json.execution.error.stack }}\n\nGive me a solution suitable for a software engineer.",
+              "role": "model"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        704,
+        704
+      ],
+      "id": "a3984216-34ed-4bde-bed2-6f3fc30aa405",
+      "name": "Message a model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "eyocDL9JMM1ymPDZ",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "subhansandhu312@gmail.com",
+        "subject": "=🚨 Alert: Failure in Workflow {{ $('Error Trigger').item.json.workflow.name }}",
+        "message": "=<h3>Logistics Bot Error Report</h3> <p><b>Status:</b> 🔴 System Failure Detected</p> <p><b>Failed Node:</b> {{ $('Error Trigger').item.json.execution.lastNodeExecuted }}</p> <p><b>AI Diagnosis & Fix:</b> {{ $json.text }}</p> <hr> <p><b>Technical Error:</b> {{ $('Error Trigger').item.json.execution.error.message }}</p> <p><a href=\"{{ $('Error Trigger').item.json.execution.url }}\">Click here to debug the failed execution in n8n</a></p>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        992,
+        704
+      ],
+      "id": "87af5f75-9bee-4f65-9460-9b1faa9ce367",
+      "name": "Send a message2",
+      "webhookId": "84489afa-42a3-4675-9454-9df93fa5f7ae",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "4SaeD7uqSpHsB9sq",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ],
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Convert HTML to PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Convert HTML to PDF": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Upload file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload file": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message1": {
+      "main": [
+        []
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Send message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Send a message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "4d9db8af-0d5c-4326-a210-d6ccfbbc9ba8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "46a8ce39e0f4d54c61591a57355bc17851cef4bf7bab395140157c7880f8ded5"
+  },
+  "id": "yjZ7WUHU0F_vouufArv7u",
+  "tags": []
+}
